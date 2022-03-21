@@ -6,12 +6,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -22,7 +24,23 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+// Headers is string slice
+type Headers []string
+
+func (ml *Headers) String() string {
+	return fmt.Sprintln(*ml)
+}
+
+// Set string value in Headers
+func (ml *Headers) Set(s string) error {
+	*ml = append(*ml, s)
+	return nil
+}
+
 func main() {
+	var headers Headers
+	flag.Var(&headers, "header", "The prometheus remote write header like key=\"value\", repeatable")
+
 	url := flag.String("url", "", "The prometheus remote write url")
 	tlsCAFile := flag.String("tls-ca-file", "", "The prometheus remote write TLS ca file")
 	tlsKeyFile := flag.String("tls-key-file", "", "The prometheus remote write TLS key file")
@@ -44,7 +62,7 @@ func main() {
 	wr := formatData(mf)
 
 	client := initHTTPClient(*tlsCAFile, *tlsKeyFile, *tlsCertFile, *tlsSkipVerify, *timeout)
-	sendData(client, wr, *url, *debug)
+	sendData(client, wr, *url, *debug, headers)
 }
 
 // formatData convert metric family to a writerequest
@@ -87,7 +105,7 @@ func formatData(mf map[string]*dto.MetricFamily) *prompb.WriteRequest {
 }
 
 // sendData push timeseries to a remote write url
-func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bool) {
+func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bool, headers []string) {
 	if debug {
 		log.Printf("Sending %d timeseries", len(wr.Timeseries))
 	}
@@ -105,6 +123,12 @@ func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bo
 	req, err := http.NewRequest("POST", url, bytes.NewReader(compressed))
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// Set custom HTTP headers
+	for _, h := range headers {
+		header := strings.Split(h, "=")
+		req.Header[header[0]] = []string{header[1]}
 	}
 
 	// Set the required HTTP header content.

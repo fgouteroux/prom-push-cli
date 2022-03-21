@@ -24,22 +24,30 @@ This help to be a bit more performant with reducing the payload size.
 ```shell
 Usage of prom-push-cli:
   -debug
-    	Enable verbose mode
+      Enable verbose mode
+  -header value
+      The prometheus remote write header like key="value", repeatable
   -timeout int
-    	The prometheus remote write timeout (default 30)
+      The prometheus remote write timeout (default 30)
   -tls-ca-file string
-    	The prometheus remote write TLS ca file
+      The prometheus remote write TLS ca file
   -tls-cert-file string
-    	The prometheus remote write TLS cert file
+      The prometheus remote write TLS cert file
   -tls-key-file string
-    	The prometheus remote write TLS key file
+      The prometheus remote write TLS key file
   -tls-skip-verify
-    	Disables the prometheus remote write TLS verify
+      Disables the prometheus remote write TLS verify
   -url string
-    	The prometheus remote write url
+      The prometheus remote write url
 ```
 
 ## Run it
+
+### With Headers
+
+```shell
+echo 'custom_metric_info{job="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -header Authorization="Basic 123456" -header tenant=test
+```
 
 ### Without TLS
 
