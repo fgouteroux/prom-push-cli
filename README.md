@@ -27,6 +27,8 @@ Usage of prom-push-cli:
       Enable verbose mode
   -header value
       The prometheus remote write header like key="value", repeatable
+  -job-label string
+      The prometheus remote write job label to add (default "prom-push-cli")
   -timeout int
       The prometheus remote write timeout (default 30)
   -tls-ca-file string
@@ -46,30 +48,30 @@ Usage of prom-push-cli:
 ### With Headers
 
 ```shell
-echo 'custom_metric_info{job="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -header Authorization="Basic 123456" -header tenant=test
+echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -header Authorization="Basic 123456" -header tenant=test
 ```
 
 ### Without TLS
 
 ```shell
-echo 'custom_metric_info{job="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive
+echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive
 ```
 
 ### With TLS Insecure
 ```shell
-echo 'custom_metric_info{job="manual"} 1.' | ./prom-push-cli -url https://my-remote-write:10001/api/v1/receive -tls-skip-verify
+echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url https://my-remote-write:10001/api/v1/receive -tls-skip-verify
 ```
 
 ### With TLS
 ```shell
-echo 'custom_metric_info{job="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -tls-cert-file mycert.crt -tls-key-file my-key.pem -tls-ca-file myca.crt
+echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -tls-cert-file mycert.crt -tls-key-file my-key.pem -tls-ca-file myca.crt
 ```
 
 ### With Debug mode
 ```shell
 cat /tmp/metric 
-custom_metric_info{job="manual"} 1
-custom_metric_info{job="manual2"} 1
+custom_metric_info{test="manual"} 1
+custom_metric_info{test="manual2"} 1
 
 
 cat /tmp/metric | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -debug
@@ -79,16 +81,7 @@ Host: my-remote-write:10001
 Content-Encoding: snappy
 Content-Type: application/x-protobuf
 X-Prometheus-Remote-Write-Version: 0.1.0
-
-��F
-A
-
-__name__custom_metric_info
-
-jobmanual	�?�¼��/
-B
-zC
-C	C2FD
+[...]
 2022/03/16 11:48:48 method=POST url=http://my-remote-write:10001/api/v1/receive length=92 status=200 duration=40
 ```
 

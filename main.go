@@ -24,6 +24,13 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+// A backoff schedule for when and how often to retry failed HTTP requests
+var backoffSchedule = []time.Duration{
+	1 * time.Second,
+	3 * time.Second,
+	5 * time.Second,
+}
+
 // Headers is string slice
 type Headers []string
 
@@ -46,6 +53,7 @@ func main() {
 	tlsKeyFile := flag.String("tls-key-file", "", "The prometheus remote write TLS key file")
 	tlsCertFile := flag.String("tls-cert-file", "", "The prometheus remote write TLS cert file")
 	tlsSkipVerify := flag.Bool("tls-skip-verify", false, "Disables the prometheus remote write TLS verify")
+	jobLabel := flag.String("job-label", "prom-push-cli", "The prometheus remote write job label to add")
 	timeout := flag.Int("timeout", 30, "The prometheus remote write timeout")
 	debug := flag.Bool("debug", false, "Enable verbose mode")
 	flag.Parse()
@@ -59,14 +67,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wr := formatData(mf)
+	wr := formatData(mf, *jobLabel)
 
 	client := initHTTPClient(*tlsCAFile, *tlsKeyFile, *tlsCertFile, *tlsSkipVerify, *timeout)
-	sendData(client, wr, *url, *debug, headers)
+	sendDataWithRetries(client, wr, *url, *debug, headers)
 }
 
 // formatData convert metric family to a writerequest
-func formatData(mf map[string]*dto.MetricFamily) *prompb.WriteRequest {
+func formatData(mf map[string]*dto.MetricFamily, jobLabel string) *prompb.WriteRequest {
 	wr := &prompb.WriteRequest{
 		Timeseries: []*prompb.TimeSeries{},
 	}
@@ -80,6 +88,10 @@ func formatData(mf map[string]*dto.MetricFamily) *prompb.WriteRequest {
 					&prompb.Label{
 						Name:  "__name__",
 						Value: metricName,
+					},
+					&prompb.Label{
+						Name:  "job",
+						Value: jobLabel,
 					},
 				},
 			}
@@ -105,7 +117,28 @@ func formatData(mf map[string]*dto.MetricFamily) *prompb.WriteRequest {
 }
 
 // sendData push timeseries to a remote write url
-func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bool, headers []string) {
+func sendDataWithRetries(client *http.Client, wr *prompb.WriteRequest, url string, debug bool, headers []string) {
+
+	var err error
+	for _, backoff := range backoffSchedule {
+		err = sendData(client, wr, url, debug, headers)
+		if err == nil {
+			break
+		}
+
+		log.Printf("Request error - %+v\n", err)
+		log.Printf("Retrying in %v\n", backoff)
+		time.Sleep(backoff)
+	}
+
+	// All retries failed
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// sendData push timeseries to a remote write url
+func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bool, headers []string) error {
 	if debug {
 		log.Printf("Sending %d timeseries", len(wr.Timeseries))
 	}
@@ -139,7 +172,7 @@ func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bo
 	if debug {
 		requestDump, err := httputil.DumpRequest(req, true)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		log.Println(string(requestDump))
 	}
@@ -147,7 +180,7 @@ func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bo
 	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	defer resp.Body.Close()
@@ -163,17 +196,18 @@ func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bo
 	if resp.StatusCode != 200 {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if debug {
 			responseDump, err := httputil.DumpResponse(resp, true)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			log.Println(string(responseDump))
 		}
-		log.Fatalf("Unable to push timeseries: %d - %s", resp.StatusCode, string(bodyBytes))
+		return fmt.Errorf("Unable to push timeseries: %d - %s", resp.StatusCode, string(bodyBytes))
 	}
+	return nil
 }
 
 // ParseReader consumes an io.Reader and returns the MetricFamily
