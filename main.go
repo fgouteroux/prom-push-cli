@@ -238,7 +238,7 @@ func getValue(m *dto.Metric) float64 {
 	}
 }
 
-func initHTTPClient(caFile string, certFile, keyFile string, insecure bool, timeout int) *http.Client {
+func initHTTPClient(caFile string, keyFile, certFile string, insecure bool, timeout int) *http.Client {
 	tlsConfig := &tls.Config{}
 
 	if insecure {
