@@ -20,6 +20,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/prometheus/prompb"
+	"golang.org/x/net/http2"
 
 	dto "github.com/prometheus/client_model/go"
 )
@@ -56,6 +57,7 @@ func main() {
 	jobLabel := flag.String("job-label", "prom-push-cli", "The prometheus remote write job label to add")
 	timeout := flag.Int("timeout", 30, "The prometheus remote write timeout")
 	debug := flag.Bool("debug", false, "Enable verbose mode")
+	enableHTTP2 := flag.Bool("enable-http2", false, "Enables http2")
 	flag.Parse()
 
 	if len(*url) == 0 {
@@ -69,7 +71,7 @@ func main() {
 	}
 	wr := formatData(mf, *jobLabel)
 
-	client := initHTTPClient(*tlsCAFile, *tlsKeyFile, *tlsCertFile, *tlsSkipVerify, *timeout)
+	client := initHTTPClient(*url, *tlsCAFile, *tlsKeyFile, *tlsCertFile, *enableHTTP2, *tlsSkipVerify, *timeout)
 	sendDataWithRetries(client, wr, *url, *debug, headers)
 }
 
@@ -238,7 +240,7 @@ func getValue(m *dto.Metric) float64 {
 	}
 }
 
-func initHTTPClient(caFile string, keyFile, certFile string, insecure bool, timeout int) *http.Client {
+func initHTTPClient(url, caFile string, keyFile, certFile string, enableHTTP2, insecure bool, timeout int) *http.Client {
 	tlsConfig := &tls.Config{}
 
 	if insecure {
@@ -264,10 +266,15 @@ func initHTTPClient(caFile string, keyFile, certFile string, insecure bool, time
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	return &http.Client{
+	client := &http.Client{
 		Timeout: time.Duration(timeout) * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
 	}
+
+	if strings.HasPrefix(url, "https") && enableHTTP2 {
+		client.Transport = &http2.Transport{TLSClientConfig: tlsConfig}
+	} else {
+		client.Transport = &http.Transport{TLSClientConfig: tlsConfig}
+	}
+
+	return client
 }
