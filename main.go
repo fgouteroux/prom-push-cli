@@ -97,8 +97,12 @@ func formatData(mf map[string]*dto.MetricFamily, jobLabel string) *prompb.WriteR
 			}
 
 			for _, label := range metric.Label {
+				labelname := label.GetName()
+				if labelname == "job" {
+					continue
+				}
 				timeserie.Labels = append(timeserie.Labels, &prompb.Label{
-					Name:  label.GetName(),
+					Name:  labelname,
 					Value: label.GetValue(),
 				})
 			}
