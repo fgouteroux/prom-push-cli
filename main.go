@@ -199,17 +199,18 @@ func sendData(client *http.Client, wr *prompb.WriteRequest, url string, debug bo
 		int(time.Since(start).Milliseconds()),
 	)
 
+	if debug {
+		responseDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			return err
+		}
+		log.Println(string(responseDump))
+	}
+
 	if resp.StatusCode != 200 {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
-		}
-		if debug {
-			responseDump, err := httputil.DumpResponse(resp, true)
-			if err != nil {
-				return err
-			}
-			log.Println(string(responseDump))
 		}
 		return fmt.Errorf("Unable to push timeseries: %d - %s", resp.StatusCode, string(bodyBytes))
 	}
