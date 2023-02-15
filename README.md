@@ -48,23 +48,23 @@ Usage of prom-push-cli:
 ### With Headers
 
 ```shell
-echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -header Authorization="Basic 123456" -header tenant=test
+echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/push -header Authorization="Basic 123456" -header tenant=test
 ```
 
 ### Without TLS
 
 ```shell
-echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive
+echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/push
 ```
 
 ### With TLS Insecure
 ```shell
-echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url https://my-remote-write:10001/api/v1/receive -tls-skip-verify
+echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url https://my-remote-write:10001/api/v1/push -tls-skip-verify
 ```
 
 ### With TLS
 ```shell
-echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -tls-cert-file mycert.crt -tls-key-file my-key.pem -tls-ca-file myca.crt
+echo 'custom_metric_info{test="manual"} 1.' | ./prom-push-cli -url http://my-remote-write:10001/api/v1/push -tls-cert-file mycert.crt -tls-key-file my-key.pem -tls-ca-file myca.crt
 ```
 
 ### With Debug mode
@@ -74,15 +74,48 @@ custom_metric_info{test="manual"} 1
 custom_metric_info{test="manual2"} 1
 
 
-cat /tmp/metric | ./prom-push-cli -url http://my-remote-write:10001/api/v1/receive -debug
+cat /tmp/metric | ./prom-push-cli -url http://my-remote-write:10001/api/v1/push -debug
 2022/03/16 11:48:48 Sending 2 timeseries
-2022/03/16 11:48:48 POST /api/v1/receive HTTP/1.1
+2022/03/16 11:48:48 POST /api/v1/push HTTP/1.1
 Host: my-remote-write:10001
 Content-Encoding: snappy
 Content-Type: application/x-protobuf
 X-Prometheus-Remote-Write-Version: 0.1.0
 [...]
-2022/03/16 11:48:48 method=POST url=http://my-remote-write:10001/api/v1/receive length=92 status=200 duration=40
+2022/03/16 11:48:48 method=POST url=http://my-remote-write:10001/api/v1/push length=92 status=200 duration=40
+```
+
+## Integrate prom-push-cli to your code
+
+```
+import (
+  "strings"
+  "github.com/fgouteroux/prom-push-cli/pkg/client"
+  "github.com/fgouteroux/prom-push-cli/pkg/metrics"
+  "log"
+)
+
+func main() {
+  // create io.reader with metrics to send
+  metrics_reader := strings.NewReader("custom_metric{label1=\"value1\"} 1\n")
+
+  // ParseAndFormat return the data in the expected prometheus metrics write request format
+  // Second arg is the job label to attach to timeseries
+  data, err := metrics.ParseAndFormat(metrics_reader, "job-test")
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  // Configure client with remote write url and others settings
+  var headers []string
+  promClient := client.Configure("http://my-remote-write:10001/api/v1/push", false, 30, headers)
+
+  // Push timeseries with a backoff retry in case of errors
+  err = promClient.PushWithRetries(data)
+  if err != nil {
+    log.Fatal(err)
+  }
+}
 ```
 
 ## TODO
