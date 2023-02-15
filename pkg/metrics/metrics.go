@@ -13,21 +13,19 @@ import (
 
 // formatData convert metric family to a writerequest
 func formatData(mf map[string]*dto.MetricFamily, jobLabel string) *prompb.WriteRequest {
-	wr := &prompb.WriteRequest{
-		Timeseries: []*prompb.TimeSeries{},
-	}
+	wr := &prompb.WriteRequest{}
 
 	for metricName, data := range mf {
 		for _, metric := range data.Metric {
 
 			// add the metric name
-			timeserie := &prompb.TimeSeries{
-				Labels: []*prompb.Label{
-					&prompb.Label{
+			timeserie := prompb.TimeSeries{
+				Labels: []prompb.Label{
+					prompb.Label{
 						Name:  "__name__",
 						Value: metricName,
 					},
-					&prompb.Label{
+					prompb.Label{
 						Name:  "job",
 						Value: jobLabel,
 					},
@@ -39,7 +37,7 @@ func formatData(mf map[string]*dto.MetricFamily, jobLabel string) *prompb.WriteR
 				if labelname == "job" {
 					continue
 				}
-				timeserie.Labels = append(timeserie.Labels, &prompb.Label{
+				timeserie.Labels = append(timeserie.Labels, prompb.Label{
 					Name:  labelname,
 					Value: label.GetValue(),
 				})
