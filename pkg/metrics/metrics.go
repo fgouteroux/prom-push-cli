@@ -11,8 +11,8 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
-// formatData convert metric family to a writerequest
-func formatData(mf map[string]*dto.MetricFamily, jobLabel string) *prompb.WriteRequest {
+// FormatData convert metric family to a writerequest
+func FormatData(mf map[string]*dto.MetricFamily, jobLabel string) *prompb.WriteRequest {
 	wr := &prompb.WriteRequest{}
 
 	for metricName, data := range mf {
@@ -86,5 +86,5 @@ func ParseAndFormat(input io.Reader, jobLabel string) (*prompb.WriteRequest, err
 	if err != nil {
 		return nil, err
 	}
-	return formatData(mf, jobLabel), nil
+	return FormatData(mf, jobLabel), nil
 }
