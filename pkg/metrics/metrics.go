@@ -11,11 +11,33 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+var MetricMetadata_MetricType_value = map[string]int32{
+	"UNKNOWN":        0,
+	"COUNTER":        1,
+	"GAUGE":          2,
+	"HISTOGRAM":      3,
+	"GAUGEHISTOGRAM": 4,
+	"SUMMARY":        5,
+	"INFO":           6,
+	"STATESET":       7,
+}
+
 // FormatData convert metric family to a writerequest
 func FormatData(mf map[string]*dto.MetricFamily, jobLabel string) *prompb.WriteRequest {
 	wr := &prompb.WriteRequest{}
 
 	for metricName, data := range mf {
+
+		// Set metadata writerequest
+		mtype := MetricMetadata_MetricType_value[data.Type.String()]
+		metadata := prompb.MetricMetadata{
+			MetricFamilyName: data.GetName(),
+			Type:             prompb.MetricMetadata_MetricType(mtype),
+			Help:             data.GetHelp(),
+		}
+		
+		wr.Metadata = append(wr.Metadata, metadata)
+
 		for _, metric := range data.Metric {
 
 			// add the metric name
