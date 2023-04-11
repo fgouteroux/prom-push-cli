@@ -138,11 +138,12 @@ func (client Client) Push(wr *prompb.WriteRequest) error {
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
 	if client.Debug {
-		requestDump, err := httputil.DumpRequest(req, true)
+		requestDump, err := httputil.DumpRequest(req, false)
 		if err != nil {
 			return err
 		}
-		log.Println(string(requestDump))
+		log.Printf("request: \n%s", string(requestDump))
+		log.Printf("request body: \n%s", proto.MarshalTextString(wr))
 	}
 
 	start := time.Now()
@@ -166,7 +167,7 @@ func (client Client) Push(wr *prompb.WriteRequest) error {
 		if err != nil {
 			return err
 		}
-		log.Println(string(responseDump))
+		log.Printf("response: \n%s", string(responseDump))
 	}
 
 	if resp.StatusCode != 200 {
