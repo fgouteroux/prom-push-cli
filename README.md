@@ -1,3 +1,7 @@
+> **Note**
+This project is no longer maintained as this feature have been merged in [promtool](https://github.com/prometheus/prometheus/pull/12299).
+
+
 # Prometheus Push Cli
 
 The prom-push-cli is made for testing purpose and for jobs which expose
@@ -18,6 +22,9 @@ The prom-push-cli read input from stdin and use [expfmt](https://pkg.go.dev/gith
 Then it create a WriteRequest object, serialize it and send as an HTTP request with snappy-compressed protocol buffer.
 
 This help to be a bit more performant with reducing the payload size.
+
+> **Warning**
+This project doesn't manage summary and histogram types.
 
 ## Usage
 
